@@ -111,7 +111,7 @@ SensorReading readAndSendReadings() {
   float temperature = htu21d.readTemperature();
   float humidity = htu21d.readHumidity();
 
-
+  
 }
 
 float getVolumeNeeded(float et) {
