@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
@@ -10,9 +12,9 @@ struct HallEffectReading {
     : flowRate(flowRate), volume(volume) {}
 };
 
-class YFS201C {
+class YSF401 {
   public:
-    YFS201C(int pin = 27, float K = 7.5)
+    YSF401(int pin = 27, float K = 7.5)
       : pulsePin(pin), K(K), totalPulse(0), lastTime(0) {}
 
     void begin();
@@ -23,7 +25,7 @@ class YFS201C {
 
     void calibrate();
 
-    static YFS201C* instance;
+    static YSF401* instance;
 
   private:
     int pulsePin;

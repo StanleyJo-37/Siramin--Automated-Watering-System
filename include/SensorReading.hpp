@@ -1,8 +1,10 @@
+#pragma once
+
 #include <iostream>
 
 struct SensorReading {
-  float temperature, humidity, lightIntensity, windSpeed, soilMoisture, soilTemperature;
+  float temperature, humidity, solarRadiation, windSpeed, soilMoisture;
 
-  SensorReading(float temperature, float humidity, float lightIntensity, float windSpeed, float soilMoisture, float soilTemperature)
-    : temperature(temperature), humidity(humidity), lightIntensity(lightIntensity), windSpeed(windSpeed), soilMoisture(soilMoisture), soilTemperature(soilTemperature) {};
+  SensorReading(float temperature, float humidity, float solarRadiation, float windSpeed, float soilMoisture)
+    : temperature(temperature), humidity(humidity), solarRadiation(solarRadiation), windSpeed(windSpeed), soilMoisture(soilMoisture) {};
 };

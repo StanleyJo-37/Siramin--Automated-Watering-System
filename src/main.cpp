@@ -1,60 +1,62 @@
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
-#include <Adafruit_HTU21DF.h>
-#include <YFS201C.hpp>
+#include <DHT.h>
+#include <YFS401.hpp>
 #include <SensorReading.hpp>
 #include <FAO56ET.hpp>
 #include <BlynkSimpleEsp32.h>
-
-// LCD
-#define LCD LiquidCrystal_I2C
+#include <SoilMoistureSensor.hpp>
 
 // Sensors
-#define HTU21D Adafruit_HTU21DF
 #define BMP280 Adafruit_BMP280
 
 // States
 volatile int displayState = 0;
 
 // PWM Setups
-constexpr int PWM_FREQ = 5000;
-constexpr int PWM_RES = 8;
+constexpr unsigned int PWM_FREQ = 5000;
+constexpr unsigned int PWM_RES = 8;
 
 // GPIO PINS
-constexpr int LCD_SDA_PIN = 21;
-constexpr int LCD_SCL_PIN = 22;
+constexpr unsigned int LCD_SDA_PIN = 21;
+constexpr unsigned int LCD_SCL_PIN = 22;
 
-constexpr int LED_R_PIN = 25;
-constexpr int LED_G_PIN = 26;
-constexpr int LED_B_PIN = 27;
+constexpr unsigned int LED_R_PIN = 25;
+constexpr unsigned int LED_G_PIN = 26;
+constexpr unsigned int LED_B_PIN = 27;
 
-constexpr int RELAY_PIN = 12;
-constexpr int YSF201C_PIN = 13;
+constexpr unsigned int RELAY_PIN = 12;
+constexpr unsigned int YSF401_PIN = 13;
+constexpr unsigned int DHT_PIN = 4;
+
+constexpr unsigned int SOIL_MOISTURE_PIN = 10;
+constexpr unsigned int PHOTO_RESISTOR_PIN = 11;
 
 // LED Channels
-constexpr int CH_R = 0;
-constexpr int CH_G = 1;
-constexpr int CH_B = 2;
+constexpr unsigned int CH_R = 0;
+constexpr unsigned int CH_G = 1;
+constexpr unsigned int CH_B = 2;
 
 // Misc Values
-float YSF201C_K = 7.5f;
+float YSF401_K = 7.5f;
 float kc = 1.0f;
 float soil_area = 2.0f;
+float WIND_SPEED = 2.0f;
 
-// LCD
-LCD lcd = LCD(0x27, 16, 2);
-
-volatile float cumETc = 0.0f;
 unsigned long previousMillis = 0;
 unsigned long interval = 30UL * 60UL * 1000UL;
+volatile float cumETc = 0.0f;
 
-// Sensors
-HTU21D htu21d = HTU21D();
-YFS201C yfs201c = YFS201C(YSF201C_PIN, YSF201C_K);
+// Sensors and Outputs
+// LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+DHT dht11 = DHT(DHT_PIN, DHT11);
+YSF401 ysf401 = YSF401(YSF401_PIN, YSF401_K);
+SoilMoistureSensor soilMoistureSensor = SoilMoistureSensor(SOIL_MOISTURE_PIN);
 
 // Thresholds
 float cumEtcThreshold = 3.0f;
-float soilMoistureThreshold = 0.3f;
+float soilMoistureThreshold = 30.0f;
 
 // Blynk and WiFi Auth
 constexpr char BLYNK_TEMPLATE_ID[] = "";
@@ -65,17 +67,27 @@ BlynkTimer timer;
 char ssid[] = "";
 char pass[] = "";
 
+float getSolarRadiation() {
+  int rawLdr = analogRead(PHOTO_RESISTOR_PIN);
+  // Map 0-4095 (Dark-Bright) to 0-1000 W/m2
+  float watts = map(rawLdr, 0, 4095, 0, 1000); 
+  // Convert W/m2 to MJ/m^2/day (0.0864 factor)
+  return watts * 0.0864;
+}
+
 void water(float targetVolume, const uint32_t measure_interval = 1000, const uint32_t timeout = 60000) {
   float accVolume = 0.0f;
 
   unsigned long lastMeasure = millis();
   unsigned long startTime   = millis();
 
+  Serial.printf(">> PUMP ON. Target: %.2f L\n", targetVolume);
   // Water and begin measurement
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, LOW);
 
   // Measurement loop until accVolume satisifes the amount of water needed
   while (accVolume < targetVolume) {
+    Blynk.run();
     unsigned long now = millis();
 
     if (now - startTime > timeout) {
@@ -86,32 +98,54 @@ void water(float targetVolume, const uint32_t measure_interval = 1000, const uin
     // Calculate once per second
     if (now - lastMeasure >= measure_interval) {
       // Get reading and add volume to accumulated volume
-      HallEffectReading wateringReading = yfs201c.measure();
+      HallEffectReading wateringReading = ysf401.measure();
       accVolume += wateringReading.volume;
-      
-      // Update last measure
-      lastMeasure = now;
 
       if (wateringReading.flowRate <= 0.1f) {  
         Serial.println("WARNING: No flow detected! Shutting off.");
         break;
       }
+      Serial.printf("Flow: %.1f L/m | Total: %.2f L\n", wateringReading.flowRate, accVolume);
+      lastMeasure = now;
     }
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
   // Turn relay off
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
+  Serial.println(">> PUMP OFF.");
 
   // Reset and flush variables
-  yfs201c.getAndResetPulse();
+  ysf401.getAndResetPulse();
 }
 
 SensorReading readAndSendReadings() {
-  float temperature = htu21d.readTemperature();
-  float humidity = htu21d.readHumidity();
+  float temperature = dht11.readTemperature();
+  float humidity = dht11.readHumidity();
+  float soilMoisture = soilMoistureSensor.read();
+  float solarRadiation = getSolarRadiation();
+  float windSpeed = WIND_SPEED;
 
-  
+  if (isnan(temperature) || isnan(humidity)) {
+    temperature = 25.0;
+    humidity = 50.0;
+    Serial.println("DHT Error: Using defaults.");
+  }
+
+  SensorReading r(temperature, humidity, soilMoisture, solarRadiation, windSpeed);
+
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.printf("T:%.0f H:%.0f S:%.0f%%", r.temperature, r.humidity, r.soilMoisture);
+  lcd.setCursor(0,1);
+  lcd.printf("Rad:%.1f ET:%.1f", r.solarRadiation, cumETc);
+
+  Blynk.virtualWrite(V0, r.temperature);
+  Blynk.virtualWrite(V1, r.humidity);
+  Blynk.virtualWrite(V2, r.soilMoisture);
+  Blynk.virtualWrite(V3, cumETc);
+
+  return r;
 }
 
 float getVolumeNeeded(float et) {
@@ -145,16 +179,22 @@ void setup() {
 
   // Relay
   pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH);
 
+  pinMode(PHOTO_RESISTOR_PIN, INPUT);
   // HTU21D
-  htu21d.begin();
+  dht11.begin();
 
-  // YFS201C
-  yfs201c.begin();
+  soilMoistureSensor.begin();
+
+  // YSF401
+  ysf401.begin();
 
 }
 
 void loop() {
+  Blynk.run();
+
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
@@ -164,14 +204,17 @@ void loop() {
     FAO56ET fao56et = FAO56ET(readings);
     float et = fao56et.getEt();
     float etInterval = et * (interval / 86400000.0);
+    
     cumETc += etInterval;
-
     float volume = getVolumeNeeded(etInterval);
 
     if (readings.soilMoisture < soilMoistureThreshold && cumETc > cumEtcThreshold) {
       float volume = getVolumeNeeded(cumETc);
       water(volume);
+
       cumETc = 0;
+    } else {
+      Serial.println("No watering needed.");
     }
   }
 }

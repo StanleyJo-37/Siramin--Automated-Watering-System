@@ -1,16 +1,16 @@
-#include "YFS201C.hpp"
+#include "YFS401.hpp"
 #include "Arduino.h"
 
-YFS201C* YFS201C::instance = nullptr;
+YSF401* YSF401::instance = nullptr;
 
-void YFS201C::begin()
+void YSF401::begin()
 {
   instance = this;
-  pinMode(pulsePin, INPUT);
-  attachInterrupt(pulsePin, YFS201C::pulseISR, FALLING);
+  pinMode(pulsePin, INPUT_PULLUP);
+  attachInterrupt(pulsePin, YSF401::pulseISR, FALLING);
 }
 
-uint64_t YFS201C::getAndResetPulse()
+uint64_t YSF401::getAndResetPulse()
 {
   uint64_t pulses;
 
@@ -23,7 +23,7 @@ uint64_t YFS201C::getAndResetPulse()
   return pulses;
 }
 
-float YFS201C::getFlowRate(uint64_t pulses, unsigned long elapsedTime)
+float YSF401::getFlowRate(uint64_t pulses, unsigned long elapsedTime)
 {
   float frequency = (pulses * 1000.0) / elapsedTime;
   float flowRate = (frequency * 60) / K;
@@ -31,7 +31,7 @@ float YFS201C::getFlowRate(uint64_t pulses, unsigned long elapsedTime)
   return flowRate;
 }
 
-float YFS201C::getCurrentVolume(uint64_t pulses, unsigned long elapsedTime)
+float YSF401::getCurrentVolume(uint64_t pulses, unsigned long elapsedTime)
 {
   float frequency = (pulses * 1000.0) / elapsedTime;
   float flowRate = (frequency * 60) / K;
@@ -39,7 +39,7 @@ float YFS201C::getCurrentVolume(uint64_t pulses, unsigned long elapsedTime)
   return pulses / (K * 60);
 }
 
-HallEffectReading YFS201C::measure()
+HallEffectReading YSF401::measure()
 {
   unsigned long currentTime = millis();
   unsigned long elapsedTime = currentTime - lastTime;
@@ -55,11 +55,11 @@ HallEffectReading YFS201C::measure()
   return HallEffectReading(flowRate, volume);
 }
 
-void YFS201C::calibrate()
+void YSF401::calibrate()
 {
 }
 
-void IRAM_ATTR YFS201C::pulseISR()
+void IRAM_ATTR YSF401::pulseISR()
 {
   if (instance) {
     portENTER_CRITICAL(&instance->mux);
