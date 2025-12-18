@@ -18,19 +18,19 @@ constexpr unsigned int PWM_FREQ = 5000;
 constexpr unsigned int PWM_RES = 8;
 
 // GPIO PINS
-constexpr unsigned int LCD_SDA_PIN = 21;
-constexpr unsigned int LCD_SCL_PIN = 22;
+constexpr unsigned int LCD_SDA_PIN = 8;
+constexpr unsigned int LCD_SCL_PIN = 9;
 
-constexpr unsigned int LED_R_PIN = 25;
-constexpr unsigned int LED_G_PIN = 26;
-constexpr unsigned int LED_B_PIN = 27;
+constexpr unsigned int LED_R_PIN = 5;
+constexpr unsigned int LED_G_PIN = 7;
+constexpr unsigned int LED_B_PIN = 6;
 
-constexpr unsigned int RELAY_PIN = 12;
-constexpr unsigned int YSF401_PIN = 13;
-constexpr unsigned int DHT_PIN = 4;
+constexpr unsigned int RELAY_PIN = 1;
+constexpr unsigned int YSF401_PIN = 2;
+constexpr unsigned int DHT_PIN = 0;
 
-constexpr unsigned int SOIL_MOISTURE_PIN = 10;
-constexpr unsigned int PHOTO_RESISTOR_PIN = 11;
+constexpr unsigned int SOIL_MOISTURE_PIN = 4;
+constexpr unsigned int PHOTO_RESISTOR_PIN = 3;
 
 // LED Channels
 constexpr unsigned int CH_R = 0;
@@ -154,8 +154,10 @@ float getVolumeNeeded(float et) {
 
 void setup() {
   // Serial Monitor
-  Serial.begin(9600);
-
+  Serial.begin(115200);
+  delay(3000);
+  Serial.println("Setup initation");
+  
   // LED Setup
   pinMode(LED_R_PIN, OUTPUT);
   pinMode(LED_G_PIN, OUTPUT);
@@ -189,6 +191,8 @@ void setup() {
 
   // YSF401
   ysf401.begin();
+
+  Serial.println("Setup finished, all sensor initiated");
 
 }
 
