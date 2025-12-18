@@ -45,6 +45,7 @@ float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
 unsigned long interval = 30UL * 60UL * 1000UL;
+unsigned long sensorInterval = 2000UL;
 volatile float cumETc = 0.0f;
 
 // Sensors and Outputs
@@ -200,10 +201,14 @@ void loop() {
   Blynk.run();
 
   unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= sensorInterval) {
+    readAndSendReadings();
+  }
+  
   if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-
     SensorReading readings = readAndSendReadings();
+    previousMillis = currentMillis;
 
     FAO56ET fao56et = FAO56ET(readings);
     float et = fao56et.getEt();
