@@ -47,7 +47,9 @@ float soil_area = 2.0f;
 float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
+unsigned long previousMillisSensor = 0;
 unsigned long interval = 1UL * 60UL * 1000UL;
+unsigned long sensorInterval = 2000UL;
 volatile float cumETc = 0.0f;
 
 // Sensors and Outputs
@@ -61,10 +63,10 @@ SoilMoistureSensor soilMoistureSensor = SoilMoistureSensor(SOIL_MOISTURE_PIN);
 float cumEtcThreshold = 3.0f;
 float soilMoistureThreshold = 30.0f;
 
-// Blynk and WiFi Auth
-// constexpr char BLYNK_TEMPLATE_ID[] = "";
-// constexpr char BLYNK_TEMPLATE_NAME[] = "";
-// constexpr char BLYNK_AUTH_TOKEN[] = "";
+Blynk and WiFi Auth
+constexpr char BLYNK_TEMPLATE_ID[] = "";
+constexpr char BLYNK_TEMPLATE_NAME[] = "";
+constexpr char BLYNK_AUTH_TOKEN[] = "";
 BlynkTimer timer;
 
 char ssid[] = "";
@@ -236,11 +238,17 @@ void setup() {
 void loop() {
   Blynk.run();
   unsigned long currentMillis = millis();
-  SensorReading readings = readAndSendReadings();
+
+  if (currentMillis - previousMillisSensor >= sensorInterval) {
+    previousMillisSensor = currentMillis;
+    
+    // This updates the LCD and sends data to Blynk V0, V1, V2, V3
+    readAndSendReadings(); 
+  }
   
   if (currentMillis - previousMillis >= interval) {
+    SensorReading readings = readAndSendReadings();
     previousMillis = currentMillis;
-
 
     FAO56ET fao56et = FAO56ET(readings);
     float et = fao56et.getEt();
