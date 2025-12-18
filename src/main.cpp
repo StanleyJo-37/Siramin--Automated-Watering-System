@@ -44,6 +44,7 @@ float soil_area = 2.0f;
 float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
+unsigned long previousMillisSensor = 0;
 unsigned long interval = 30UL * 60UL * 1000UL;
 unsigned long sensorInterval = 2000UL;
 volatile float cumETc = 0.0f;
@@ -201,9 +202,12 @@ void loop() {
   Blynk.run();
 
   unsigned long currentMillis = millis();
-  
-  if (currentMillis - previousMillis >= sensorInterval) {
-    readAndSendReadings();
+
+  if (currentMillis - previousMillisSensor >= sensorInterval) {
+    previousMillisSensor = currentMillis;
+    
+    // This updates the LCD and sends data to Blynk V0, V1, V2, V3
+    readAndSendReadings(); 
   }
   
   if (currentMillis - previousMillis >= interval) {
