@@ -48,7 +48,7 @@ float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
 unsigned long previousMillisSensor = 0;
-unsigned long interval = 1UL * 60UL * 1000UL;
+unsigned long interval = 10UL * 60UL * 1000UL;
 unsigned long sensorInterval = 2000UL;
 volatile float cumETc = 0.0f;
 
@@ -63,7 +63,7 @@ SoilMoistureSensor soilMoistureSensor = SoilMoistureSensor(SOIL_MOISTURE_PIN);
 float cumEtcThreshold = 3.0f;
 float soilMoistureThreshold = 30.0f;
 
-Blynk and WiFi Auth
+// Blynk and WiFi Auth
 constexpr char BLYNK_TEMPLATE_ID[] = "";
 constexpr char BLYNK_TEMPLATE_NAME[] = "";
 constexpr char BLYNK_AUTH_TOKEN[] = "";
