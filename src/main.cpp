@@ -6,6 +6,9 @@
 #include <FAO56ET.hpp>
 #include <BlynkSimpleEsp32.h>
 #include <SoilMoistureSensor.hpp>
+#include "esp_netif.h"
+
+
 
 // Sensors
 #define BMP280 Adafruit_BMP280
@@ -44,7 +47,7 @@ float soil_area = 2.0f;
 float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
-unsigned long interval = 30UL * 60UL * 1000UL;
+unsigned long interval = 1UL * 60UL * 1000UL;
 volatile float cumETc = 0.0f;
 
 // Sensors and Outputs
@@ -59,9 +62,9 @@ float cumEtcThreshold = 3.0f;
 float soilMoistureThreshold = 30.0f;
 
 // Blynk and WiFi Auth
-constexpr char BLYNK_TEMPLATE_ID[] = "";
-constexpr char BLYNK_TEMPLATE_NAME[] = "";
-constexpr char BLYNK_AUTH_TOKEN[] = "";
+// constexpr char BLYNK_TEMPLATE_ID[] = "";
+// constexpr char BLYNK_TEMPLATE_NAME[] = "";
+// constexpr char BLYNK_AUTH_TOKEN[] = "";
 BlynkTimer timer;
 
 char ssid[] = "";
@@ -171,8 +174,42 @@ void setup() {
   ledcAttachPin(LED_G_PIN, CH_G);
   ledcAttachPin(LED_B_PIN, CH_B);
 
+  // wifi forcing dns (safe way for hotspot device)
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  delay(100);
+
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+
+  if (netif) {
+    esp_netif_dns_info_t dns;
+    dns.ip.type = ESP_IPADDR_TYPE_V4;
+    dns.ip.u_addr.ip4.addr = esp_ip4addr_aton("8.8.8.8");
+    esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns);
+
+    dns.ip.u_addr.ip4.addr = esp_ip4addr_aton("1.1.1.1");
+    esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns);
+  }
+
+  Serial.print("DNS: ");
+  Serial.println(WiFi.dnsIP());
+
+  IPAddress ip;
+  bool ok = WiFi.hostByName("blynk.cloud", ip);
+  Serial.println(ok ? "DNS OK" : "DNS FAIL");
+  Serial.println(ip);
+
   // Blynk
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud");
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
 
   // LCD Setup
   lcd.init();
@@ -198,12 +235,12 @@ void setup() {
 
 void loop() {
   Blynk.run();
-
   unsigned long currentMillis = millis();
+  SensorReading readings = readAndSendReadings();
+  
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    SensorReading readings = readAndSendReadings();
 
     FAO56ET fao56et = FAO56ET(readings);
     float et = fao56et.getEt();
