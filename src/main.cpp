@@ -43,7 +43,7 @@ constexpr unsigned int CH_B = 2;
 // Misc Values
 float YSF401_K = 7.5f;
 float kc = 1.0f;
-float soil_area = 2.0f;
+float SOIL_AREA = 2.0f;
 float WIND_SPEED = 2.0f;
 
 unsigned long previousMillis = 0;
@@ -147,14 +147,14 @@ SensorReading readAndSendReadings() {
 
   Blynk.virtualWrite(V0, r.temperature);
   Blynk.virtualWrite(V1, r.humidity);
-  Blynk.virtualWrite(V2, r.soilMoisture);
-  Blynk.virtualWrite(V3, cumETc);
+  Blynk.virtualWrite(V8, r.soilMoisture);
+  Blynk.virtualWrite(V9, cumETc);
 
   return r;
 }
 
 float getVolumeNeeded(float et) {
-  return et * soil_area;
+  return et * SOIL_AREA;
 }
 
 void setup() {
@@ -233,6 +233,10 @@ void setup() {
 
   Serial.println("Setup finished, all sensor initiated");
 
+  Blynk.run();
+  Blynk.virtualWrite(V2, WIND_SPEED);
+  Blynk.virtualWrite(V7, SOIL_AREA);
+
 }
 
 void loop() {
@@ -252,14 +256,30 @@ void loop() {
 
     FAO56ET fao56et = FAO56ET(readings);
     float et = fao56et.getEt();
-    float etInterval = et * (interval / 86400000.0);
+    float etInterval = et * (interval / 86400000.0f);
     
     cumETc += etInterval;
     float volume = getVolumeNeeded(etInterval);
 
     if (readings.soilMoisture < soilMoistureThreshold && cumETc > cumEtcThreshold) {
       float volume = getVolumeNeeded(cumETc);
+
+      String waterStatus;
+      
+      if (volume >= 0.00f && volume <= 2.99f) {
+        waterStatus = "Sufficient";
+      } else if (volume <= 3.00f && volume >= 6.00f) {
+        waterStatus = "Enough";
+      } else if (volume >= 6.00f) {
+        waterStatus = "Too Low";
+      }
+      Blynk.virtualWrite(V4, waterStatus);
+
+      Blynk.virtualWrite(V6, volume);
+
       water(volume);
+
+      Blynk.virtualWrite(V6, 0.00f);
 
       cumETc = 0;
     } else {
