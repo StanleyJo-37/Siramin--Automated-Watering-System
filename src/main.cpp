@@ -266,13 +266,18 @@ void loop() {
 
       String waterStatus;
       
-      if (volume >= 0.00f && volume <= 2.99f) {
+      String waterStatus;
+
+      if (volume < 3.00f) {
         waterStatus = "Sufficient";
-      } else if (volume <= 3.00f && volume >= 6.00f) {
-        waterStatus = "Enough";
-      } else if (volume >= 6.00f) {
+      } 
+      else if (volume >= 3.00f && volume < 6.00f) {
+        waterStatus = "Needs Water";
+      }
+      else {
         waterStatus = "Too Low";
       }
+
       Blynk.virtualWrite(V4, waterStatus);
 
       Blynk.virtualWrite(V6, volume);
